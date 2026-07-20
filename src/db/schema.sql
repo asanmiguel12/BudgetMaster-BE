@@ -187,22 +187,33 @@ ALTER TABLE public.push_tokens          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notification_charges ENABLE ROW LEVEL SECURITY;
 
 -- Users can only see/edit their own rows
+DROP POLICY IF EXISTS "users: own row" ON public.users;
 CREATE POLICY "users: own row"         ON public.users        FOR ALL USING (auth.uid() = id);
+DROP POLICY IF EXISTS "plaid_items: own rows" ON public.plaid_items;
 CREATE POLICY "plaid_items: own rows"  ON public.plaid_items  FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "accounts: own rows" ON public.accounts;
 CREATE POLICY "accounts: own rows"     ON public.accounts     FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "transactions: own rows" ON public.transactions;
 CREATE POLICY "transactions: own rows" ON public.transactions FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "budgets: own rows" ON public.budgets;
 CREATE POLICY "budgets: own rows"      ON public.budgets      FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "push_tokens: own rows" ON public.push_tokens;
 CREATE POLICY "push_tokens: own rows"  ON public.push_tokens  FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "notification_charges: own rows" ON public.notification_charges;
 CREATE POLICY "notification_charges: own rows" ON public.notification_charges
   FOR ALL USING (auth.uid() = user_id);
 
 -- Categories: see system defaults OR own custom ones
+DROP POLICY IF EXISTS "categories: system + own" ON public.categories;
 CREATE POLICY "categories: system + own" ON public.categories
   FOR SELECT USING (user_id IS NULL OR auth.uid() = user_id);
+DROP POLICY IF EXISTS "categories: own insert" ON public.categories;
 CREATE POLICY "categories: own insert"   ON public.categories
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "categories: own update" ON public.categories;
 CREATE POLICY "categories: own update"   ON public.categories
   FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "categories: own delete" ON public.categories;
 CREATE POLICY "categories: own delete"   ON public.categories
   FOR DELETE USING (auth.uid() = user_id);
 
@@ -211,18 +222,22 @@ CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$;
 
+DROP TRIGGER IF EXISTS trg_users_updated_at ON public.users;
 CREATE TRIGGER trg_users_updated_at
   BEFORE UPDATE ON public.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+DROP TRIGGER IF EXISTS trg_transactions_updated_at ON public.transactions;
 CREATE TRIGGER trg_transactions_updated_at
   BEFORE UPDATE ON public.transactions
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+DROP TRIGGER IF EXISTS trg_accounts_updated_at ON public.accounts;
 CREATE TRIGGER trg_accounts_updated_at
   BEFORE UPDATE ON public.accounts
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+DROP TRIGGER IF EXISTS trg_plaid_items_updated_at ON public.plaid_items;
 CREATE TRIGGER trg_plaid_items_updated_at
   BEFORE UPDATE ON public.plaid_items
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
@@ -241,6 +256,7 @@ BEGIN
   RETURN NEW;
 END; $$;
 
-CREATE OR REPLACE TRIGGER on_auth_user_created
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
