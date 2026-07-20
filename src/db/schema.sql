@@ -136,6 +136,24 @@ CREATE TABLE IF NOT EXISTS public.push_tokens (
   UNIQUE(user_id, token)
 );
 
+-- ── notification_charges (iOS bank push notifications) ─────
+-- Captures charges parsed from bank app notifications forwarded by iOS
+CREATE TABLE IF NOT EXISTS public.notification_charges (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id           UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  amount            NUMERIC(12,2),             -- negative = charge (NULL if parse failed)
+  currency_code     TEXT NOT NULL DEFAULT 'USD',
+  merchant_name     TEXT,
+  raw_title         TEXT,
+  raw_body          TEXT NOT NULL,
+  source_app        TEXT,                      -- e.g. "Chase", "Bank of America"
+  notification_id   TEXT,                      -- iOS id for dedup
+  charged_at        DATE,
+  parse_status      TEXT NOT NULL DEFAULT 'failed',  -- parsed | partial | failed
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, notification_id)
+);
+
 -- ── webhook_events (audit log) ───────────────────────────────
 CREATE TABLE IF NOT EXISTS public.webhook_events (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -155,6 +173,8 @@ CREATE INDEX IF NOT EXISTS idx_transactions_pending       ON public.transactions
 CREATE INDEX IF NOT EXISTS idx_accounts_user              ON public.accounts(user_id);
 CREATE INDEX IF NOT EXISTS idx_plaid_items_user           ON public.plaid_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_budgets_user               ON public.budgets(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_charges_user  ON public.notification_charges(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notification_charges_date  ON public.notification_charges(user_id, charged_at DESC);
 
 -- ── Row Level Security ───────────────────────────────────────
 ALTER TABLE public.users        ENABLE ROW LEVEL SECURITY;
@@ -163,7 +183,8 @@ ALTER TABLE public.accounts     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budgets      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.push_tokens  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.push_tokens          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notification_charges ENABLE ROW LEVEL SECURITY;
 
 -- Users can only see/edit their own rows
 CREATE POLICY "users: own row"         ON public.users        FOR ALL USING (auth.uid() = id);
@@ -172,6 +193,8 @@ CREATE POLICY "accounts: own rows"     ON public.accounts     FOR ALL USING (aut
 CREATE POLICY "transactions: own rows" ON public.transactions FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "budgets: own rows"      ON public.budgets      FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "push_tokens: own rows"  ON public.push_tokens  FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "notification_charges: own rows" ON public.notification_charges
+  FOR ALL USING (auth.uid() = user_id);
 
 -- Categories: see system defaults OR own custom ones
 CREATE POLICY "categories: system + own" ON public.categories

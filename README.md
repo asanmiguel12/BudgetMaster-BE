@@ -147,6 +147,65 @@ pending, search, page, limit, sort (field:asc|desc)
 | POST   | /api/categories | Create custom category |
 | DELETE | /api/categories/:id | Delete custom category |
 
+### Notification Charges (iOS bank alerts)
+| Method | Path | Description |
+|--------|------|-------------|
+| POST   | /api/notification-charges | Ingest a bank push notification |
+| GET    | /api/notification-charges | List saved charges |
+| GET    | /api/notification-charges/summary | Total charges for a date range |
+| GET    | /api/notification-charges/:id | Single charge |
+| PATCH  | /api/notification-charges/:id | Fix amount/merchant after failed parse |
+| DELETE | /api/notification-charges/:id | Delete a charge |
+
+**POST /api/notification-charges body:**
+```json
+{
+  "title": "Chase",
+  "body": "You spent $45.67 at STARBUCKS on 07/20.",
+  "source_app": "Chase",
+  "notification_id": "optional-ios-id-for-dedup"
+}
+```
+
+The backend parses amount and merchant from the notification text automatically.
+Send `amount` and/or `merchant_name` to override parsing. Amounts are stored as
+negative numbers (expenses), matching the transactions table.
+
+---
+
+## iOS Bank Notification Capture
+
+iOS does not let third-party apps read other apps' notifications in the background.
+Use one of these flows to forward bank alerts to this API:
+
+### Option A — iOS Shortcuts (recommended, no app code)
+
+1. Open **Shortcuts → Automation → + → Personal Automation**
+2. Choose **Notification** → select your bank app (e.g. Chase)
+3. Add action **Get Contents of Notification**
+4. Add action **Get contents of URL** (POST):
+   - URL: `https://your-api.com/api/notification-charges`
+   - Method: POST
+   - Headers: `Authorization: Bearer <supabase-jwt>`, `Content-Type: application/json`
+   - Request Body (JSON):
+     ```json
+     {
+       "title": "[Notification Title]",
+       "body": "[Notification Body]",
+       "source_app": "Chase"
+     }
+     ```
+
+### Option B — BudgetMaster iOS app
+
+Your app receives forwarded notification data (Share Sheet, manual paste, or a
+Shortcut that opens your app with the payload) and POSTs to the same endpoint.
+
+After you set up Supabase, run the updated `src/db/schema.sql` — it includes the
+`notification_charges` table.
+
+---
+
 ### Webhooks
 | Method | Path | Description |
 |--------|------|-------------|
@@ -213,7 +272,8 @@ budget-backend/
 │   │   ├── accounts.js
 │   │   ├── transactions.js
 │   │   ├── budgets.js
-│   │   └── categories.js
+│   │   ├── categories.js
+│   │   └── notificationCharges.js
 │   ├── services/
 │   │   ├── plaidService.js   ← all Plaid API calls
 │   │   └── cronJobs.js       ← nightly sync + budget alerts
@@ -225,7 +285,8 @@ budget-backend/
 │   ├── db/
 │   │   └── schema.sql        ← run this in Supabase SQL editor
 │   └── utils/
-│       └── logger.js
+│       ├── logger.js
+│       └── notificationParser.js  ← parses bank push notification text
 ├── config/
 │   ├── supabase.js
 │   └── plaid.js

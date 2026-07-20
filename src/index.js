@@ -18,6 +18,7 @@ const accountsRoutes     = require('./routes/accounts');
 const transactionsRoutes = require('./routes/transactions');
 const budgetsRoutes      = require('./routes/budgets');
 const categoriesRoutes   = require('./routes/categories');
+const notificationChargesRoutes = require('./routes/notificationCharges');
 
 // ── Webhooks (no auth middleware — Plaid calls these) ────────
 const { plaidWebhookHandler } = require('./webhooks/plaid');
@@ -72,6 +73,7 @@ app.use('/api/accounts',     accountsRoutes);
 app.use('/api/transactions', transactionsRoutes);
 app.use('/api/budgets',      budgetsRoutes);
 app.use('/api/categories',   categoriesRoutes);
+app.use('/api/notification-charges', notificationChargesRoutes);
 
 // ── 404 handler ──────────────────────────────────────────────
 app.use((req, res) => {
@@ -91,7 +93,7 @@ async function start() {
     logger.info('Routes:');
     logger.info('  POST /webhooks/plaid');
     logger.info('  GET  /health');
-    logger.info('  /api/auth, /api/plaid, /api/accounts, /api/transactions, /api/budgets, /api/categories');
+    logger.info('  /api/auth, /api/plaid, /api/accounts, /api/transactions, /api/budgets, /api/categories, /api/notification-charges');
   });
 }
 
