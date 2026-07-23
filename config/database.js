@@ -30,11 +30,14 @@ async function testDatabaseConnection() {
 }
 
 async function ensureFrontendSchema() {
-  const migrationPath = path.join(__dirname, '../src/db/migrations/001_app_budget_state.sql');
-  if (!fs.existsSync(migrationPath)) return;
+  const migrationsDir = path.join(__dirname, '../src/db/migrations');
+  if (!fs.existsSync(migrationsDir)) return;
 
-  const sql = fs.readFileSync(migrationPath, 'utf8');
-  await pool.query(sql);
+  const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+  for (const file of files) {
+    const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+    await pool.query(sql);
+  }
 }
 
 module.exports = { pool, testDatabaseConnection, ensureFrontendSchema };

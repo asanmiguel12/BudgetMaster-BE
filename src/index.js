@@ -23,6 +23,7 @@ const spendingBudgetsRoutes = require('./routes/budgets');
 const categoriesRoutes   = require('./routes/categories');
 const notificationChargesRoutes = require('./routes/notificationCharges');
 const appBudgetsRoutes   = require('./routes/appBudgets');
+const appUsersRoutes     = require('./routes/appUsers');
 
 // ── Webhooks (no auth middleware — Plaid calls these) ────────
 const { plaidWebhookHandler } = require('./webhooks/plaid');
@@ -104,6 +105,7 @@ app.get('/api', (req, res) => {
 
 // ── API Routes ───────────────────────────────────────────────
 app.use('/api/budgets', appBudgetsRoutes);
+app.use('/api/users', appUsersRoutes);
 app.use('/api/auth',         authRoutes);
 app.use('/api/plaid',        plaidRoutes);
 app.use('/api/accounts',     accountsRoutes);
