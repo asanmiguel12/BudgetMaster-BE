@@ -132,13 +132,25 @@ account_id, category_id, start_date, end_date,
 pending, search, page, limit, sort (field:asc|desc)
 ```
 
-### Budgets
+### Budgets (Expo app sync)
 | Method | Path | Description |
 |--------|------|-------------|
-| GET    | /api/budgets | List budgets with live progress |
+| GET    | /api/budgets | Load budget state `{ budgets, activeBudgetIndex }` |
+| PUT    | /api/budgets/sync | Full sync from app |
 | POST   | /api/budgets | Create budget |
 | PATCH  | /api/budgets/:id | Update budget |
 | DELETE | /api/budgets/:id | Delete budget |
+| POST   | /api/budgets/:id/transactions | Add transaction to budget |
+
+Auth for frontend routes: `X-User-Id: demo` in development, or `Authorization: Bearer <supabase-jwt>` in production.
+
+### Spending Budgets (Plaid/category limits)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | /api/spending-budgets | List budgets with live progress |
+| POST   | /api/spending-budgets | Create budget |
+| PATCH  | /api/spending-budgets/:id | Update budget |
+| DELETE | /api/spending-budgets/:id | Delete budget |
 
 ### Categories
 | Method | Path | Description |

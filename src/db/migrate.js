@@ -22,7 +22,12 @@ function getDatabaseUrl() {
 
 async function migrate() {
   const schemaPath = path.join(__dirname, 'schema.sql');
-  const sql = fs.readFileSync(schemaPath, 'utf8');
+  const migrationPath = path.join(__dirname, 'migrations', '001_app_budget_state.sql');
+  const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+  const migrationSql = fs.existsSync(migrationPath)
+    ? fs.readFileSync(migrationPath, 'utf8')
+    : '';
+
   const client = new Client({
     connectionString: getDatabaseUrl(),
     ssl: { rejectUnauthorized: false }
@@ -33,7 +38,13 @@ async function migrate() {
 
   try {
     console.log('Applying schema.sql...');
-    await client.query(sql);
+    await client.query(schemaSql);
+
+    if (migrationSql) {
+      console.log('Applying frontend migration...');
+      await client.query(migrationSql);
+    }
+
     console.log('Schema applied successfully.');
 
     const { rows } = await client.query(`

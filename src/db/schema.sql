@@ -137,21 +137,28 @@ CREATE TABLE IF NOT EXISTS public.push_tokens (
 );
 
 -- ── notification_charges (iOS bank push notifications) ─────
--- Captures charges parsed from bank app notifications forwarded by iOS
 CREATE TABLE IF NOT EXISTS public.notification_charges (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id           UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  amount            NUMERIC(12,2),             -- negative = charge (NULL if parse failed)
+  amount            NUMERIC(12,2),
   currency_code     TEXT NOT NULL DEFAULT 'USD',
   merchant_name     TEXT,
   raw_title         TEXT,
   raw_body          TEXT NOT NULL,
-  source_app        TEXT,                      -- e.g. "Chase", "Bank of America"
-  notification_id   TEXT,                      -- iOS id for dedup
+  source_app        TEXT,
+  notification_id   TEXT,
   charged_at        DATE,
-  parse_status      TEXT NOT NULL DEFAULT 'failed',  -- parsed | partial | failed
+  parse_status      TEXT NOT NULL DEFAULT 'failed',
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(user_id, notification_id)
+);
+
+-- ── app_budget_state (Expo frontend budget sync) ─────────────
+CREATE TABLE IF NOT EXISTS public.app_budget_state (
+  client_user_id      TEXT PRIMARY KEY,
+  budgets             JSONB NOT NULL DEFAULT '[]',
+  active_budget_index INTEGER NOT NULL DEFAULT 0,
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ── webhook_events (audit log) ───────────────────────────────
@@ -175,6 +182,7 @@ CREATE INDEX IF NOT EXISTS idx_plaid_items_user           ON public.plaid_items(
 CREATE INDEX IF NOT EXISTS idx_budgets_user               ON public.budgets(user_id);
 CREATE INDEX IF NOT EXISTS idx_notification_charges_user  ON public.notification_charges(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notification_charges_date  ON public.notification_charges(user_id, charged_at DESC);
+CREATE INDEX IF NOT EXISTS idx_app_budget_state_updated ON public.app_budget_state(updated_at DESC);
 
 -- ── Row Level Security ───────────────────────────────────────
 ALTER TABLE public.users        ENABLE ROW LEVEL SECURITY;
