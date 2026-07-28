@@ -1,66 +1,15 @@
 const express = require('express');
 const { param, body, query, validationResult } = require('express-validator');
-const { supabase }     = require('../../config/supabase');
+const db = require('../db/repository');
+const { supabase } = require('../../config/supabase');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /transactions — paginated, filtered list
-// Query params: account_id, category_id, start_date, end_date,
-//               pending, search, page, limit, sort
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const {
-      account_id, category_id,
-      start_date, end_date,
-      pending, search,
-      page = 1, limit = 50,
-      sort = 'date:desc'
-    } = req.query;
-
-    const pageNum  = Math.max(1, parseInt(page));
-    const pageSize = Math.min(100, Math.max(1, parseInt(limit)));
-    const from     = (pageNum - 1) * pageSize;
-    const to       = from + pageSize - 1;
-
-    let q = supabase
-      .from('transactions')
-      .select(`
-        id, amount, currency_code, name, merchant_name, pending,
-        date, datetime, payment_channel, notes, is_recurring,
-        location, plaid_category,
-        accounts ( id, name, mask, type ),
-        categories ( id, name, icon, color )
-      `, { count: 'exact' })
-      .eq('user_id', req.user.id)
-      .range(from, to);
-
-    if (account_id)  q = q.eq('account_id', account_id);
-    if (category_id) q = q.eq('category_id', category_id);
-    if (start_date)  q = q.gte('date', start_date);
-    if (end_date)    q = q.lte('date', end_date);
-    if (pending !== undefined) q = q.eq('pending', pending === 'true');
-    if (search)      q = q.ilike('name', `%${search}%`);
-
-    // sort: field:direction
-    const [sortField, sortDir] = sort.split(':');
-    const validFields = ['date', 'amount', 'name'];
-    if (validFields.includes(sortField)) {
-      q = q.order(sortField, { ascending: sortDir === 'asc' });
-    }
-
-    const { data, error, count } = await q;
-    if (error) return next(error);
-
-    res.json({
-      data,
-      pagination: {
-        total: count,
-        page:  pageNum,
-        limit: pageSize,
-        pages: Math.ceil(count / pageSize)
-      }
-    });
+    const result = await db.listTransactions(req.user.id, req.query);
+    res.json(result);
   } catch (err) { next(err); }
 });
 

@@ -1,11 +1,8 @@
 const jwt = require('jsonwebtoken');
-const { supabase } = require('../../config/supabase');
+const { getAdminClient } = require('../../config/supabaseAuth');
+const db = require('../db/repository');
 const logger = require('../utils/logger');
 
-/**
- * Verifies the Supabase JWT sent in the Authorization header.
- * Attaches req.user = { id, email, role } on success.
- */
 async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -15,20 +12,27 @@ async function authenticate(req, res, next) {
   const token = authHeader.split(' ')[1];
 
   try {
-    // Verify with Supabase JWT secret — fast, no network call
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (process.env.JWT_SECRET) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = { id: decoded.sub, email: decoded.email, role: decoded.role };
+      return next();
+    }
 
-    // Attach user info to request
-    req.user = {
-      id:    decoded.sub,
-      email: decoded.email,
-      role:  decoded.role
-    };
+    const admin = getAdminClient();
+    if (admin) {
+      const { data: { user }, error } = await admin.auth.getUser(token);
+      if (error || !user) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+      req.user = { id: user.id, email: user.email, role: user.role };
+      return next();
+    }
 
-    next();
+    return res.status(503).json({
+      error: 'Auth not configured. Set JWT_SECRET or SUPABASE_SERVICE_ROLE_KEY in .env',
+    });
   } catch (err) {
     logger.warn('Auth failed', { error: err.message });
-
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Token expired' });
     }

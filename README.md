@@ -88,6 +88,53 @@ npm start      # production
 
 ## API Reference
 
+## Plaid Bank Sync (Option C — Apple Pay / card charges)
+
+Automatic transaction import via Plaid — includes Apple Pay purchases on linked cards.
+
+### Backend setup
+
+1. Create a free account at [dashboard.plaid.com](https://dashboard.plaid.com)
+2. Add to `.env`:
+   ```
+   PLAID_CLIENT_ID=...
+   PLAID_SECRET=...          # sandbox secret for dev
+   PLAID_ENV=sandbox
+   SUPABASE_ANON_KEY=...
+   SUPABASE_SERVICE_ROLE_KEY=...
+   ```
+3. Enable Email auth in Supabase Dashboard → Authentication → Providers
+
+### App flow
+
+1. **Sign up / Sign in** in the app (Profile tab)
+2. **Connect sandbox bank** (Profile → Bank Connection)
+3. Transactions sync to `transactions` table automatically
+4. View them on the **Activity** tab
+
+### API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /api/auth/register | Create account |
+| POST | /api/auth/login | Get JWT |
+| POST | /api/plaid/link-token | Start Plaid Link (production UI) |
+| POST | /api/plaid/exchange | Finish Link flow |
+| POST | /api/plaid/sandbox/connect | Connect test bank (dev) |
+| GET | /api/plaid/items | Connected banks |
+| GET | /api/plaid/accounts | Account balances |
+| GET | /api/transactions | Synced charges |
+| POST | /webhooks/plaid | Plaid webhook (real-time sync) |
+
+### Webhooks (optional, for background sync)
+
+```bash
+ngrok http 3000
+# Set PLAID_WEBHOOK_URL=https://xxxx.ngrok.io/webhooks/plaid in .env and Plaid dashboard
+```
+
+---
+
 ### Auth
 | Method | Path | Description |
 |--------|------|-------------|
