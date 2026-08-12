@@ -49,10 +49,21 @@ router.post('/register',
         return res.status(400).json({ error: createErr.message });
       }
 
-      const { data: signInData, error: signInErr } = await anon.auth.signInWithPassword({
+      let signInData;
+      let signInErr;
+      ({ data: signInData, error: signInErr } = await anon.auth.signInWithPassword({
         email,
         password,
-      });
+      }));
+
+      if (signInErr) {
+        // User was created; retry once in case Supabase needs a moment to propagate.
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        ({ data: signInData, error: signInErr } = await anon.auth.signInWithPassword({
+          email,
+          password,
+        }));
+      }
 
       if (signInErr) {
         return res.status(201).json({
