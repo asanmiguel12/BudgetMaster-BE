@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { getAdminClient, getAnonClient } = require('../../config/supabaseAuth');
 const db = require('../db/repository');
+const plaid = require('../services/plaidService');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
@@ -159,5 +160,30 @@ router.patch('/me',
     }
   }
 );
+
+// DELETE /auth/me — disconnect Plaid, wipe app data, delete the Auth user.
+// public.users and its children cascade from auth.users.
+router.delete('/me', authenticate, async (req, res, next) => {
+  const admin = getAdminClient();
+  if (!admin) {
+    return res.status(503).json({
+      error: 'Supabase auth not configured. Set SUPABASE_SERVICE_ROLE_KEY in .env',
+    });
+  }
+
+  const userId = req.user.id;
+
+  try {
+    await plaid.disconnectAllItems(userId);
+    await db.deleteUserAppData(userId);
+
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) return res.status(400).json({ error: error.message });
+
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;

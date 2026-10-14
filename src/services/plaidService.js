@@ -161,6 +161,10 @@ async function refreshBalances(userId) {
   }
 }
 
+function plaidErrorCode(err) {
+  return err?.response?.data?.error_code || null;
+}
+
 async function removeItem(plaidItemDbId, userId) {
   const item = await db.getPlaidItemById(plaidItemDbId, userId);
   if (!item) {
@@ -169,9 +173,25 @@ async function removeItem(plaidItemDbId, userId) {
     throw err;
   }
 
-  await plaidClient.itemRemove({ access_token: item.plaid_access_token });
+  try {
+    await plaidClient.itemRemove({ access_token: item.plaid_access_token });
+  } catch (err) {
+    const code = plaidErrorCode(err);
+    // Already removed at Plaid — drop the local row so deletion can finish.
+    if (code !== 'ITEM_NOT_FOUND' && code !== 'INVALID_ACCESS_TOKEN') throw err;
+    logger.warn('Plaid item already gone', { plaidItemDbId, userId, code });
+  }
+
   await db.deletePlaidItem(plaidItemDbId);
   logger.info('Plaid item removed', { plaidItemDbId, userId });
+}
+
+async function disconnectAllItems(userId) {
+  const items = await db.listPlaidItems(userId);
+  for (const item of items) {
+    await removeItem(item.id, userId);
+  }
+  return items.length;
 }
 
 module.exports = {
@@ -182,4 +202,5 @@ module.exports = {
   syncTransactions,
   refreshBalances,
   removeItem,
+  disconnectAllItems,
 };

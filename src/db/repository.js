@@ -193,6 +193,22 @@ async function listTransactions(userId, { page = 1, limit = 50, start_date, end_
   };
 }
 
+async function deleteUserAppData(userId) {
+  await pool.query(
+    `DELETE FROM public.app_user_profiles WHERE client_user_id = $1`,
+    [userId]
+  );
+  await pool.query(
+    `DELETE FROM public.app_budget_state WHERE client_user_id = $1`,
+    [userId]
+  );
+  await pool.query(
+    `DELETE FROM public.notification_charges
+     WHERE client_user_id = $1 OR user_id::text = $1`,
+    [userId]
+  );
+}
+
 async function insertWebhookEvent(source, eventType, payload) {
   const { rows } = await pool.query(
     `INSERT INTO public.webhook_events (source, event_type, payload)
@@ -221,6 +237,7 @@ module.exports = {
   getAccountsForUser,
   upsertTransactions,
   deleteTransactionsByPlaidIds,
+  deleteUserAppData,
   listTransactions,
   insertWebhookEvent,
   markWebhookEvent,
